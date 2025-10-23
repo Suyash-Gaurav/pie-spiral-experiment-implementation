@@ -1,4 +1,4 @@
-```markdown
+
 # π-Spiral: End-to-End Experiment Plan  
 **Target:** Kaggle A100 (16 GB VRAM) | Models: Qwen2.5-1.5B, Llama-3-8B, Llama-3-34B (CPU offload)  
 **Focus:** NIAH (sanity), RULER, InfiniteBench, LongBench subsets  
@@ -269,4 +269,4 @@ Plots auto-saved: `figures/niah_heatmap_hybrid_128k.png`
 ---
 
 **Ready to run. No detours.**
-```
+
