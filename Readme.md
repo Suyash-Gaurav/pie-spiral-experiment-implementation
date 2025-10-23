@@ -1,274 +1,274 @@
-Here is a  end-to-end experiment plan you can follow without getting lost. It is structured as phases with explicit deliverables, pass–fail gates, and checklists. It assumes A100 16 GB for Qwen2.5-1.5B and Llama-3-8B, plus a single Llama-3-34B run with CPU offload for a heavyweight demo.
+Here is a end-to-end experiment plan you can follow without getting lost. It is structured as phases with explicit deliverables, pass–fail gates, and checklists. It assumes A100 16 GB for Qwen2.5-1.5B and Llama-3-8B, plus a single Llama-3-34B run with CPU offload for a heavyweight demo.
 
-\# Phase 0. Repo, environments, data
+\\# Phase 0. Repo, environments, data
 
-_\*\*Goal:\*\* a clean, reproducible skeleton before touching experiments._
+\_\\\*\\\*Goal:\\\*\\\* a clean, reproducible skeleton before touching experiments.\_
 
-_1\. Repo layout_
+\_1\\. Repo layout\_
 
-_\`\`\`_
+\_\\\`\\\`\\\`\_
 
-_pi\_spiral/_
+\_pi\\\_spiral/\_
 
-_src/ # pi-spiral module and integration shims_
+\_src/ # pi-spiral module and integration shims\_
 
-_configs/ # YAMLs for models, tasks, ablations_
+\_configs/ # YAMLs for models, tasks, ablations\_
 
-_benches/ # NIAH, RULER subset, LongBench subset, InfiniteBench subset_
+\_benches/ # NIAH, RULER subset, LongBench subset, InfiniteBench subset\_
 
-_scripts/ # run\_\*.py and plot\_\*.py_
+\_scripts/ # run\\\_\\\*.py and plot\\\_\\\*.py\_
 
-_results/ # auto-populated by runs_
+\_results/ # auto-populated by runs\_
 
-_figures/ # generated plots_
+\_figures/ # generated plots\_
 
-_docs/ # experiment log, paper ou_tline
+\_docs/ # experiment log, paper ou\_tline
 
-\`\`\`
+\\\`\\\`\\\`
 
-2\. Environments
+2\\. Environments
 
-\* Kaggle or Colab image with: PyTorch 2.x, flash-attn v2, bitsandbytes, transformers, vLLM or similar runtime, optional AutoGPTQ/AWQ, CUDA toolkit.
+\\\* Kaggle or Colab image with: PyTorch 2.x, flash-attn v2, bitsandbytes, transformers, vLLM or similar runtime, optional AutoGPTQ/AWQ, CUDA toolkit.
 
-\* Pin versions in \`requirements.txt\` and save \`pip list\` after install.
+\\\* Pin versions in \\\`requirements.txt\\\` and save \\\`pip list\\\` after install.
 
-\*\*Checklist\*\*
+\\\*\\\*Checklist\\\*\\\*
 
-\* \[ \] Deterministic seeds set globally.
+\\\* \\\[ \\\] Deterministic seeds set globally.
 
-\* \[ \] \`torch.backends.cudnn.deterministic=True\` if needed.
+\\\* \\\[ \\\] \\\`torch.backends.cudnn.deterministic=True\\\` if needed.
 
-\* \[ \] Confirm flash-attn and 4-bit quantization load successfully for all three models.
+\\\* \\\[ \\\] Confirm flash-attn and 4-bit quantization load successfully for all three models.
 
-\# Phase 1. π-Spiral module and hybrid gate
+\\# Phase 1. π-Spiral module and hybrid gate
 
-\*\*Goal:\*\* a drop-in positional module with O(1) global attractor, plus a hybrid switch for local span.
+\\\*\\\*Goal:\\\*\\\* a drop-in positional module with O(1) global attractor, plus a hybrid switch for local span.
 
-1\. Implement
+1\\. Implement
 
-\* \`PiSpiralPositional\`: generates 2D unit vectors \`e\_n = \[cos(2π frac(nπ)), sin(...)\]\` on the fly.
+\\\* \\\`PiSpiralPositional\\\`: generates 2D unit vectors \\\`e\\\_n = \\\[cos(2π frac(nπ)), sin(...)\\\]\\\` on the fly.
 
-\* \`AttractorState\`: incremental update \`C\_t = α C\_{t-1} + e\_t ⊗ h\_t\`.
+\\\* \\\`AttractorState\\\`: incremental update \\\`C\\\_t = α C\\\_{t-1} + e\\\_t ⊗ h\\\_t\\\`.
 
-\* Injection: cross-attention to \`C\_t\` in last N\_l layers or as a residual adapter.
+\\\* Injection: cross-attention to \\\`C\\\_t\\\` in last N\\\_l layers or as a residual adapter.
 
-\* Hybrid gate: RoPE for indices ≤ K, blend to π-Spiral beyond K with a smooth sigmoid.
+\\\* Hybrid gate: RoPE for indices ≤ K, blend to π-Spiral beyond K with a smooth sigmoid.
 
-2\. Config flags
+2\\. Config flags
 
-\* \`--pos=rope|rope\_ntk|alibi|pi\_spiral|hybrid\`
+\\\* \\\`--pos=rope|rope\\\_ntk|alibi|pi\\\_spiral|hybrid\\\`
 
-\* \`--window=W\` sliding window for standard attention
+\\\* \\\`--window=W\\\` sliding window for standard attention
 
-\* \`--alpha\_policy=exp\_c\_over\_N|fixed|learned\`
+\\\* \\\`--alpha\\\_policy=exp\\\_c\\\_over\\\_N|fixed|learned\\\`
 
-\* \`--irrational=pi|e|sqrt2|phi|prng\`
+\\\* \\\`--irrational=pi|e|sqrt2|phi|prng\\\`
 
-\* \`--inject\_layers=lastN\`
+\\\* \\\`--inject\\\_layers=lastN\\\`
 
-\* \`--hybrid\_K=16000\` (default)
+\\\* \\\`--hybrid\\\_K=16000\\\` (default)
 
-\*\*Checklist\*\*
+\\\*\\\*Checklist\\\*\\\*
 
-\* \[ \] Unit tests: shape checks, determinism, incremental update matches full recompute.
+\\\* \\\[ \\\] Unit tests: shape checks, determinism, incremental update matches full recompute.
 
-\* \[ \] Microbenchmarks: O(1) state size confirmed, no VRAM growth with length.
+\\\* \\\[ \\\] Microbenchmarks: O(1) state size confirmed, no VRAM growth with length.
 
-\# Phase 2. Sanity runs on Qwen2.5-1.5B
+\\# Phase 2. Sanity runs on Qwen2.5-1.5B
 
-\*\*Goal:\*\* prove nothing breaks and memory stays bounded.
+\\\*\\\*Goal:\\\*\\\* prove nothing breaks and memory stays bounded.
 
-1\. Short tasks at 4k to 32k
+1\\. Short tasks at 4k to 32k
 
-\* Tasks: tiny NIAH, simple QA.
+\\\* Tasks: tiny NIAH, simple QA.
 
-\* Modes: RoPE, π-Spiral, Hybrid.
+\\\* Modes: RoPE, π-Spiral, Hybrid.
 
-\* Verify no short-range regression beyond 1 percent for π-Spiral and none for Hybrid.
+\\\* Verify no short-range regression beyond 1 percent for π-Spiral and none for Hybrid.
 
-2\. Long stream smoke test
+2\\. Long stream smoke test
 
-\* 1M tokens dummy stream with sliding window W=8k.
+\\\* 1M tokens dummy stream with sliding window W=8k.
 
-\* Log peak VRAM, tokens per second, and stable speed.
+\\\* Log peak VRAM, tokens per second, and stable speed.
 
-\*\*Pass gate\*\*
+\\\*\\\*Pass gate\\\*\\\*
 
-\* ≤ 1 percent delta on 4k to 32k tasks with Hybrid.
+\\\* ≤ 1 percent delta on 4k to 32k tasks with Hybrid.
 
-\* Flat VRAM across 64k to 1M length.
+\\\* Flat VRAM across 64k to 1M length.
 
-\# Phase 3. Core benchmarks on Qwen2.5-1.5B
+\\# Phase 3. Core benchmarks on Qwen2.5-1.5B
 
-\*\*Goal:\*\* establish long-context credibility on a small model.
+\\\*\\\*Goal:\\\*\\\* establish long-context credibility on a small model.
 
-1\. NIAH sweep
+1\\. NIAH sweep
 
-\* Lengths: 32k, 64k, 128k, 256k, 512k, 1M.
+\\\* Lengths: 32k, 64k, 128k, 256k, 512k, 1M.
 
-\* Depth grid: 0.1 to 0.9 of length.
+\\\* Depth grid: 0.1 to 0.9 of length.
 
-\* Outputs: accuracy heatmaps, AUC vs depth.
+\\\* Outputs: accuracy heatmaps, AUC vs depth.
 
-2\. RULER subset
+2\\. RULER subset
 
-\* Tasks: counting, multi-needle, multi-hop, aggregation up to 256k.
+\\\* Tasks: counting, multi-needle, multi-hop, aggregation up to 256k.
 
-\* Outputs: per-task accuracy curves and a radar plot.
+\\\* Outputs: per-task accuracy curves and a radar plot.
 
-3\. InfiniteBench subset
+3\\. InfiniteBench subset
 
-\* One or two tasks at 100k, 256k, 512k.
+\\\* One or two tasks at 100k, 256k, 512k.
 
-\* Outputs: task score vs length.
+\\\* Outputs: task score vs length.
 
-4\. System metrics
+4\\. System metrics
 
-\* VRAM vs length, tokens per second vs length, state size constant with length.
+\\\* VRAM vs length, tokens per second vs length, state size constant with length.
 
-\*\*Pass gate\*\*
+\\\*\\\*Pass gate\\\*\\\*
 
-\* ≥ 30 percent absolute gain over RoPE or RoPE-NTK on deep NIAH at ≥ 256k.
+\\\* ≥ 30 percent absolute gain over RoPE or RoPE-NTK on deep NIAH at ≥ 256k.
 
-\* Smooth accuracy decay with length, no periodic oscillations.
+\\\* Smooth accuracy decay with length, no periodic oscillations.
 
-\# Phase 4. Lift to Llama-3-8B
+\\# Phase 4. Lift to Llama-3-8B
 
-\*\*Goal:\*\* repeat the winning subset at 7 to 8B within 16 GB.
+\\\*\\\*Goal:\\\*\\\* repeat the winning subset at 7 to 8B within 16 GB.
 
-1\. Settings
+1\\. Settings
 
-\* 4-bit quant, bf16 activations if available, W=4k for stability.
+\\\* 4-bit quant, bf16 activations if available, W=4k for stability.
 
-\* Repeat NIAH to 512k and RULER to 256k, plus a LongBench-style multi-doc QA at 128k.
+\\\* Repeat NIAH to 512k and RULER to 256k, plus a LongBench-style multi-doc QA at 128k.
 
-2\. Recheck short-range guard
+2\\. Recheck short-range guard
 
-\* ≤ 1 percent drop at 4k to 32k with Hybrid.
+\\\* ≤ 1 percent drop at 4k to 32k with Hybrid.
 
-\*\*Pass gate\*\*
+\\\*\\\*Pass gate\\\*\\\*
 
-\* Same qualitative gains as small model and no short-range regressions.
+\\\* Same qualitative gains as small model and no short-range regressions.
 
-\# Phase 5. One heavyweight demo on Llama-3-34B
+\\# Phase 5. One heavyweight demo on Llama-3-34B
 
-\*\*Goal:\*\* show the O(1) memory story scales.
+\\\*\\\*Goal:\\\*\\\* show the O(1) memory story scales.
 
-1\. Setup
+1\\. Setup
 
-\* 4-bit weights with CPU offload, W=2k, batch=1.
+\\\* 4-bit weights with CPU offload, W=2k, batch=1.
 
-\* Single long NIAH at 128k and a 100k InfiniteBench task.
+\\\* Single long NIAH at 128k and a 100k InfiniteBench task.
 
-2\. Log memory traces and throughput.
+2\\. Log memory traces and throughput.
 
-\*\*Pass gate\*\*
+\\\*\\\*Pass gate\\\*\\\*
 
-\* Bounded VRAM and stable retrieval at depth. Throughput can be slow.
+\\\* Bounded VRAM and stable retrieval at depth. Throughput can be slow.
 
-\# Phase 6. Ablations that decide authorship claims
+\\# Phase 6. Ablations that decide authorship claims
 
-\*\*Goal:\*\* separate the effect of non-periodicity, the attractor, and α policy.
+\\\*\\\*Goal:\\\*\\\* separate the effect of non-periodicity, the attractor, and α policy.
 
-1\. Irrational choice
+1\\. Irrational choice
 
-\* π vs e vs √2 vs φ vs PRNG on Qwen 1.5B for NIAH 512k and one RULER task at 256k.
+\\\* π vs e vs √2 vs φ vs PRNG on Qwen 1.5B for NIAH 512k and one RULER task at 256k.
 
-2\. Attractor on vs off
+2\\. Attractor on vs off
 
-\* π-Spiral positions alone vs positions plus C\_t.
+\\\* π-Spiral positions alone vs positions plus C\\\_t.
 
-3\. Decay schedules
+3\\. Decay schedules
 
-\* α = exp(−π/N), α = exp(−c) with c tuned, α learned scalar.
+\\\* α = exp(−π/N), α = exp(−c) with c tuned, α learned scalar.
 
-4\. Hybrid threshold K
+4\\. Hybrid threshold K
 
-\* K in {8k, 16k, 32k, 64k} with short-range QA guard.
+\\\* K in {8k, 16k, 32k, 64k} with short-range QA guard.
 
-\*\*Pass gate\*\*
+\\\*\\\*Pass gate\\\*\\\*
 
-\* If PRNG ≈ π and both beat RoPE, claim becomes non-periodic encoding plus O(1) attractor memory.
+\\\* If PRNG ≈ π and both beat RoPE, claim becomes non-periodic encoding plus O(1) attractor memory.
 
-\* If attractor carries most gains, state the combo clearly.
+\\\* If attractor carries most gains, state the combo clearly.
 
-\# Phase 7. Aliasing and stability diagnostics
+\\# Phase 7. Aliasing and stability diagnostics
 
-\*\*Goal:\*\* show why it works, not just that it works.
+\\\*\\\*Goal:\\\*\\\* show why it works, not just that it works.
 
-1\. Positional collision
+1\\. Positional collision
 
-\* Cosine similarity of positional vectors at large offsets for RoPE vs π-Spiral.
+\\\* Cosine similarity of positional vectors at large offsets for RoPE vs π-Spiral.
 
-2\. Spectral analysis
+2\\. Spectral analysis
 
-\* FFT of positional phase sequences to reveal periodic spikes in RoPE and flat spectrum for π-Spiral.
+\\\* FFT of positional phase sequences to reveal periodic spikes in RoPE and flat spectrum for π-Spiral.
 
-3\. Perplexity drift
+3\\. Perplexity drift
 
-\* Per-token loss vs position on long concatenations. Look for oscillations in RoPE that are absent in π-Spiral.
+\\\* Per-token loss vs position on long concatenations. Look for oscillations in RoPE that are absent in π-Spiral.
 
-4\. Attention visualizations
+4\\. Attention visualizations
 
-\* Heatmaps demonstrating distant token addressability at high depths.
+\\\* Heatmaps demonstrating distant token addressability at high depths.
 
-\*\*Pass gate\*\*
+\\\*\\\*Pass gate\\\*\\\*
 
-\* Clear reduction of periodic artifacts relative to RoPE and RoPE-NTK.
+\\\* Clear reduction of periodic artifacts relative to RoPE and RoPE-NTK.
 
-\# Phase 8. Cost and reliability
+\\# Phase 8. Cost and reliability
 
-\*\*Goal:\*\* operational viability.
+\\\*\\\*Goal:\\\*\\\* operational viability.
 
-1\. Cost curves
+1\\. Cost curves
 
-\* VRAM vs length and tokens per second vs length for all modes.
+\\\* VRAM vs length and tokens per second vs length for all modes.
 
-2\. Stability
+2\\. Stability
 
-\* Three random seeds for each key setting.
+\\\* Three random seeds for each key setting.
 
-\* Report mean and 95 percent CI.
+\\\* Report mean and 95 percent CI.
 
-3\. Failure cases
+3\\. Failure cases
 
-\* Collect and annotate cases where π-Spiral underperforms. Add a small troubleshooting note.
+\\\* Collect and annotate cases where π-Spiral underperforms. Add a small troubleshooting note.
 
-\# Phase 9. Results packaging
+\\# Phase 9. Results packaging
 
-\*\*Goal:\*\* paper-ready artifacts.
+\\\*\\\*Goal:\\\*\\\* paper-ready artifacts.
 
-1\. Tables
+1\\. Tables
 
-\* NIAH accuracy at fixed lengths and depths across methods and models.
+\\\* NIAH accuracy at fixed lengths and depths across methods and models.
 
-\* RULER per-task accuracy.
+\\\* RULER per-task accuracy.
 
-\* System metrics summary.
+\\\* System metrics summary.
 
-2\. Figures
+2\\. Figures
 
-\* Retrieval heatmaps, length-sweep curves, radar plot, spectral plot, cost curves, ablation grid.
+\\\* Retrieval heatmaps, length-sweep curves, radar plot, spectral plot, cost curves, ablation grid.
 
-3\. Repro kit
+3\\. Repro kit
 
-\* Config YAMLs, exact commit hashes, environment dump, run scripts.
+\\\* Config YAMLs, exact commit hashes, environment dump, run scripts.
 
-\# Phase 10. Decision tree and next actions
+\\# Phase 10. Decision tree and next actions
 
-\*\*If all pass gates hold\*\*
+\\\*\\\*If all pass gates hold\\\*\\\*
 
-\* Release code and checkpoints for reproducibility.
+\\\* Release code and checkpoints for reproducibility.
 
-\*\*If π vs PRNG is indistinguishable\*\*
+\\\*\\\*If π vs PRNG is indistinguishable\\\*\\\*
 
-\* Reframe to “non-periodic spiral encodings”. Keep contributions precise and still submit.
+\\\* Reframe to “non-periodic spiral encodings”. Keep contributions precise and still submit.
 
-\*\*If short-range regressions persist\*\*
+\\\*\\\*If short-range regressions persist\\\*\\\*
 
-\* Ship Hybrid as default, report K-sweep, and highlight no regression setting.
+\\\* Ship Hybrid as default, report K-sweep, and highlight no regression setting.
 
-\# Run order and time budgeting
+\\# Run order and time budgeting
 
 Phase 0, Phase 1 unit tests, Phase 2 sanity.
 
@@ -282,18 +282,18 @@ Phase 5 single 34B demo, Phase 8 cost and reliability.
 
 Phase 9 packaging and figure generation.
 
-\# Logging schema
+\\# Logging schema
 
-\* \`metrics.jsonl\`: task, length, depth, mode, accuracy, em, f1, rouge, ppl, seed, runtime.
+\\\* \\\`metrics.jsonl\\\`: task, length, depth, mode, accuracy, em, f1, rouge, ppl, seed, runtime.
 
-\* \`system.csv\`: step, length, vram\_mb, tokens\_per\_sec, window, state\_size.
+\\\* \\\`system.csv\\\`: step, length, vram\\\_mb, tokens\\\_per\\\_sec, window, state\\\_size.
 
-\* \`positional\_diag.csv\`: offset, cosine\_sim; \`spectral\_fft.csv\`: freq, magnitude.
+\\\* \\\`positional\\\_diag.csv\\\`: offset, cosine\\\_sim; \\\`spectral\\\_fft.csv\\\`: freq, magnitude.
 
-\* Plots auto-saved under \`figures/\` with filenames embedding config.
+\\\* Plots auto-saved under \\\`figures/\\\` with filenames embedding config.
 
-\* Confirm Hybrid default K. I propose K=16k for 8B and K=8k for 1.5B.
+\\\* Confirm Hybrid default K. I propose K=16k for 8B and K=8k for 1.5B.
 
-\* Confirm which InfiniteBench tasks to prioritize for the first pass. for sanity check: NIAH
+\\\* Confirm which InfiniteBench tasks to prioritize for the first pass. for sanity check: NIAH
 
 Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML
