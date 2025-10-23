@@ -12,7 +12,7 @@
 
 ### 1. Repo Layout
 ```
-pi_spiral/
+final/
 ├── src/               # Core module + integration shims
 ├── configs/           # YAMLs: models, tasks, ablations
 ├── benches/           # NIAH, RULER, LongBench, InfiniteBench
