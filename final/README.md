@@ -873,14 +873,14 @@ A: π-Spiral shows:
 
 If you use this implementation in your research, please cite:
 
-```bibtex
 @software{pi_spiral_encoding,
   title={π-Spiral Positional Encoding for Long-Context Transformers},
-  author={[Your Name]},
+  author={[Suyash Gaurav]},
   year={2024},
-  url={https://github.com/yourusername/pi-spiral}
+  url={https://github.com/Suyash-Gaurav/pi-spiral}
 }
-```
+
+
 
 ## License
 
@@ -894,22 +894,21 @@ If you use this implementation in your research, please cite:
 
 ## Contact
 
-For questions or issues, please open an issue on GitHub or contact [your email].
+For questions or issues, please open an issue on GitHub or contact [s23224522@al.tiu.ac.jp].
 
 If you use this implementation in your research, please cite:
 
 ```bibtex
 @software{pi_spiral_encoding,
   title={π-Spiral Positional Encoding for Long-Context Transformers},
-  author={[Your Name]},
+  author={[Suyash Gaurav]},
   year={2024},
-  url={https://github.com/yourusername/pi-spiral}
+  url={https://github.com/Suyash-Gaurav/pi-spiral}
 }
 ```
 
-## License
 
-[Specify your license here]
+
 
 ## Acknowledgments
 
@@ -919,4 +918,4 @@ If you use this implementation in your research, please cite:
 
 ## Contact
 
-For questions or issues, please open an issue on GitHub or contact [your email].
+For questions or issues, please open an issue on GitHub or contact [s23224522@al.tiu.ac.jp].
