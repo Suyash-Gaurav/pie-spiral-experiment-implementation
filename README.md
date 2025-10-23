@@ -1,7 +1,7 @@
-# π-Spiral Positional Encoding Implementation
 
-A complete Python implementation of π-Spiral Positional Encoding for long-context transformer models, featuring O(1) memory complexity through attractor state mechanisms.
 # π-Spiral: End-to-End Experiment Plan  
+
+A complete Python implementation of π-Spiral Positional Encoding for long-context transformer models, featuring O(1) memory complexity through attractor state mechanisms
 
 **Target:** Kaggle A100 (16 GB VRAM) | Models: Qwen2.5-1.5B, Llama-3-8B, Llama-3-34B (CPU offload)  
 **Focus:** NIAH (sanity), RULER, InfiniteBench, LongBench subsets  
