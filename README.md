@@ -1,8 +1,31 @@
+# π-Spiral Positional Encoding Implementation
 
+A complete Python implementation of π-Spiral Positional Encoding for long-context transformer models, featuring O(1) memory complexity through attractor state mechanisms.
 # π-Spiral: End-to-End Experiment Plan  
+
 **Target:** Kaggle A100 (16 GB VRAM) | Models: Qwen2.5-1.5B, Llama-3-8B, Llama-3-34B (CPU offload)  
 **Focus:** NIAH (sanity), RULER, InfiniteBench, LongBench subsets  
 **Internet:** Enabled
+
+
+## Overview
+
+This package implements the π-Spiral positional encoding scheme, which uses irrational number properties to create non-periodic positional representations. This approach addresses the periodic aliasing issues in standard positional encodings like RoPE, enabling better performance on long-context tasks.
+
+### Key Features
+
+- **π-Spiral Positional Encoding**: Non-periodic encoding using irrational constants (π, e, √2, φ)
+- **O(1) Attractor State**: Constant memory complexity for global context compression
+- **Hybrid Encoding**: Smooth blending of RoPE (short-range) and π-Spiral (long-range)
+- **Pre-trained Model Adapters**: Easy integration with Qwen, Llama, and other transformers
+- **Comprehensive Benchmarks**: Support for NIAH, RULER, InfiniteBench, and LongBench
+- **Flash Attention Support**: Efficient attention computation for long sequences
+- 
+### Requirements
+
+- Python 3.8+
+- CUDA 11.8+ (for GPU support)
+- PyTorch 2.0+
 
 ---
 
@@ -10,16 +33,44 @@
 
 **Goal:** Clean, reproducible foundation.
 
-### 1. Repo Layout
+
+
+## Installation
+
+
+### Setup
+
+```bash
+# Clone or navigate to the project directory
+cd final
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install flash-attention (requires CUDA)
+pip install flash-attn --no-build-isolation
+```
+
+## Project Structure
+
 ```
 final/
-├── src/               # Core module + integration shims
-├── configs/           # YAMLs: models, tasks, ablations
-├── benches/           # NIAH, RULER, LongBench, InfiniteBench
-├── scripts/           # run_*.py, plot_*.py
-├── results/           # Auto-populated
-├── figures/           # Auto-generated plots
-└── docs/              # Logs, paper outline
+├── src/                         # Source code modules
+│   ├── encodings/              # Positional encoding implementations
+│   │   ├── pi_spiral.py       # π-Spiral encoding and attractor state
+│   │   ├── rope.py            # RoPE baseline implementation
+│   │   └── hybrid.py          # Hybrid encoding (RoPE + π-Spiral)
+│   ├── models/                 # Model architectures
+│   │   ├── attention.py       # Attention mechanisms with π-Spiral
+│   │   ├── transformer.py     # Complete transformer model
+│   │   └── adapters.py        # Pre-trained model adapters
+│   ├── data_utils.py          # Data loading and preprocessing
+│   └── config.py              # Configuration management
+├── tests/                      # Test scripts
+├── configs/                    # Configuration files
+├── scripts/                    # Executable scripts
+├── requirements.txt           # Python dependencies
+└── README.md                  # This file
 ```
 
 ### 2. Environment
