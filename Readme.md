@@ -1,4 +1,4 @@
-Here is a crisp, end-to-end experiment plan you can follow without getting lost. It is structured as phases with explicit deliverables, pass–fail gates, and checklists. It assumes Kaggle A100 16 GB for Qwen2.5-1.5B and Llama-3-8B, plus a single Llama-3-34B run with CPU offload for a heavyweight demo. I have internet access,
+Here is a  end-to-end experiment plan you can follow without getting lost. It is structured as phases with explicit deliverables, pass–fail gates, and checklists. It assumes A100 16 GB for Qwen2.5-1.5B and Llama-3-8B, plus a single Llama-3-34B run with CPU offload for a heavyweight demo.
 
 \# Phase 0. Repo, environments, data
 
