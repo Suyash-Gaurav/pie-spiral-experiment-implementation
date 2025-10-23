@@ -70,7 +70,7 @@ final/
 ├── configs/                    # Configuration files
 ├── scripts/                    # Executable scripts
 ├── requirements.txt           # Python dependencies
-└── README.md                  # This file
+└── README.md                  # Code implementation
 ```
 
 ### 2. Environment
