@@ -1,0 +1,123 @@
+# Ablation Study: Attractor State On/Off Comparison
+# Phase 6 - Ablation to separate the effect of the attractor mechanism
+
+experiment_name: ablation_attractor
+run_name: null
+output_dir: ./results/ablation_attractor
+logging_dir: ./logs/ablation_attractor
+
+# Pretrained Model Configuration
+pretrained:
+  model_name_or_path: Qwen/Qwen2.5-1.5B
+  trust_remote_code: true
+  torch_dtype: bfloat16
+  load_in_4bit: false
+  load_in_8bit: false
+  use_flash_attn: true
+  device_map: auto
+
+# Model Configuration
+model:
+  # Positional Encoding - π-Spiral
+  pos_encoding:
+    type: pi_spiral
+    irrational: pi
+    hybrid_K: 16000
+    transition_width: 1000
+    max_seq_len: 1000000
+    rope_base: 10000.0
+  
+  # Attractor State - This will be toggled in ablation
+  attractor:
+    use_attractor: true  # Will be varied: true vs false
+    alpha_policy: exp_c_over_N
+    alpha_value: 0.99
+    c_value: null  # Defaults to π
+    inject_layers: last_N
+    N_inject: 4
+    attractor_inject: cross_attn
+    d_state: null
+
+# Training Configuration
+training:
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  num_epochs: 1
+  learning_rate: 5.0e-05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  lr_scheduler_type: cosine
+  warmup_steps: 50
+  bf16: true
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 500
+  seed: 42
+  deterministic: true
+
+# Data Configuration
+data:
+  dataset_name: niah
+  data_dir: ./data
+  max_seq_length: 1000000
+  preprocessing_num_workers: 4
+  dataloader_num_workers: 0
+
+# Evaluation Configuration
+evaluation:
+  benchmarks:
+    - niah
+    - ruler
+  
+  # NIAH at 512k for ablation
+  niah_lengths:
+    - 512000
+  niah_depths:
+    - 0.1
+    - 0.3
+    - 0.5
+    - 0.7
+    - 0.9
+  
+  # One RULER task at 256k
+  ruler_tasks:
+    - multi_needle
+  ruler_max_length: 256000
+  
+  max_new_tokens: 100
+  temperature: 1.0
+  top_k: 50
+  top_p: 0.95
+  do_sample: true
+  
+  metrics:
+    - accuracy
+    - exact_match
+    - f1
+
+# System Configuration
+system:
+  device: cuda
+  num_gpus: 1
+  window_size: 8000
+  gradient_checkpointing: false
+  cpu_offload: false
+  use_flash_attention: true
+  compile_model: false
+  log_memory: true
+  log_throughput: true
+
+# Ablation Settings
+ablation_mode: attractor
+ablation_values:
+  - true   # π-Spiral positions + attractor state
+  - false  # π-Spiral positions alone (no attractor)
+
+# Experiment Notes
+notes: |
+  This ablation study compares π-Spiral encoding with and without the attractor state
+  to isolate the contribution of the O(1) global context compression mechanism.
+  
+  Expected outcome: If attractor carries most gains, this will be clearly stated.
+  
+  Pass gate: Clear separation of positional encoding vs attractor contributions.

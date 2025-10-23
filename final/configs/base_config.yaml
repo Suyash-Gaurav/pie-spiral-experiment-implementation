@@ -1,0 +1,151 @@
+# Base Configuration for π-Spiral Positional Encoding Experiment
+
+experiment_name: pi_spiral_base
+run_name: null
+output_dir: ./results
+logging_dir: ./logs
+
+# Model Configuration
+model:
+  model_name: pi_spiral_transformer
+  d_model: 512
+  num_layers: 6
+  num_heads: 8
+  d_ff: 2048
+  vocab_size: 50000
+  dropout: 0.1
+  activation: gelu
+  layer_norm_eps: 1.0e-05
+  tie_weights: true
+  
+  # Positional Encoding
+  pos_encoding:
+    type: pi_spiral
+    irrational: pi
+    hybrid_K: 16000
+    transition_width: 1000
+    max_seq_len: 100000
+    rope_base: 10000.0
+  
+  # Attractor State
+  attractor:
+    use_attractor: true
+    alpha_policy: exp_c_over_N
+    alpha_value: 0.99
+    c_value: null  # Defaults to π
+    inject_layers: last_N
+    N_inject: 4
+    attractor_inject: cross_attn
+    d_state: null  # Defaults to d_model
+
+# Training Configuration
+training:
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  num_epochs: 3
+  max_steps: null
+  learning_rate: 5.0e-05
+  weight_decay: 0.01
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-08
+  max_grad_norm: 1.0
+  lr_scheduler_type: cosine
+  warmup_steps: 100
+  warmup_ratio: 0.1
+  fp16: false
+  bf16: true
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 500
+  save_total_limit: 3
+  eval_strategy: steps
+  eval_accumulation_steps: null
+  seed: 42
+  deterministic: true
+
+# Data Configuration
+data:
+  dataset_name: niah
+  data_dir: ./data
+  train_file: null
+  validation_file: null
+  test_file: null
+  max_seq_length: 100000
+  preprocessing_num_workers: 4
+  dataloader_num_workers: 0
+  dataloader_pin_memory: true
+  niah_lengths:
+    - 32000
+    - 64000
+    - 128000
+    - 256000
+    - 512000
+    - 1000000
+  niah_depths:
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+  niah_samples_per_config: 10
+
+# Evaluation Configuration
+evaluation:
+  benchmarks:
+    - niah
+    - ruler
+    - infinitebench
+  niah_lengths:
+    - 32000
+    - 64000
+    - 128000
+    - 256000
+    - 512000
+    - 1000000
+  niah_depths:
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+  ruler_tasks:
+    - counting
+    - multi_needle
+    - multi_hop
+    - aggregation
+  ruler_max_length: 256000
+  max_new_tokens: 100
+  temperature: 1.0
+  top_k: 50
+  top_p: 0.95
+  do_sample: true
+  metrics:
+    - accuracy
+    - exact_match
+    - f1
+    - rouge
+
+# System Configuration
+system:
+  device: cuda
+  num_gpus: 1
+  window_size: null
+  gradient_checkpointing: false
+  cpu_offload: false
+  use_flash_attention: true
+  compile_model: false
+  log_memory: true
+  log_throughput: true
+
+# Ablation Settings
+ablation_mode: null
+ablation_values: null

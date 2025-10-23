@@ -1,0 +1,136 @@
+# Configuration for Qwen2.5-1.5B with π-Spiral Encoding
+# Phase 2-3: Sanity runs and core benchmarks
+
+experiment_name: qwen_1.5b_pi_spiral
+output_dir: ./results/qwen_1.5b_pi_spiral
+logging_dir: ./logs/qwen_1.5b_pi_spiral
+
+# Pretrained Model Configuration
+pretrained:
+  model_name_or_path: Qwen/Qwen2.5-1.5B
+  load_in_4bit: false
+  load_in_8bit: false
+  use_flash_attn: true
+  torch_dtype: auto
+  device_map: auto
+  trust_remote_code: true
+  inject_pi_spiral: true
+  
+  # Positional Encoding for adaptation
+  pos_encoding:
+    type: pi_spiral
+    irrational: pi
+    hybrid_K: 8000  # Lower K for 1.5B model
+    transition_width: 1000
+    max_seq_len: 1000000
+    rope_base: 10000.0
+  
+  # Attractor State
+  attractor:
+    use_attractor: true
+    alpha_policy: exp_c_over_N
+    alpha_value: 0.99
+    c_value: null
+    inject_layers: last_N
+    N_inject: 4
+    attractor_inject: cross_attn
+    d_state: null
+
+# Training Configuration
+training:
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  num_epochs: 3
+  max_steps: null
+  learning_rate: 5.0e-05
+  weight_decay: 0.01
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-08
+  max_grad_norm: 1.0
+  lr_scheduler_type: cosine
+  warmup_steps: 100
+  warmup_ratio: 0.1
+  fp16: false
+  bf16: true
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 500
+  save_total_limit: 3
+  seed: 42
+  deterministic: true
+
+# Data Configuration
+data:
+  dataset_name: niah
+  data_dir: ./data
+  max_seq_length: 1000000
+  preprocessing_num_workers: 4
+  dataloader_num_workers: 0
+  dataloader_pin_memory: true
+  niah_lengths:
+    - 4000
+    - 8000
+    - 16000
+    - 32000
+    - 64000
+    - 128000
+    - 256000
+    - 512000
+    - 1000000
+  niah_depths:
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+  niah_samples_per_config: 10
+
+# Evaluation Configuration
+evaluation:
+  benchmarks:
+    - niah
+    - ruler
+    - infinitebench
+  niah_lengths:
+    - 32000
+    - 64000
+    - 128000
+    - 256000
+    - 512000
+    - 1000000
+  niah_depths:
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+  ruler_tasks:
+    - counting
+    - multi_needle
+    - multi_hop
+    - aggregation
+  ruler_max_length: 256000
+  max_new_tokens: 100
+  temperature: 0.1
+  do_sample: false
+
+# System Configuration
+system:
+  device: cuda
+  num_gpus: 1
+  window_size: 8000  # Sliding window for stability
+  gradient_checkpointing: false
+  cpu_offload: false
+  use_flash_attention: true
+  compile_model: false
+  log_memory: true
+  log_throughput: true

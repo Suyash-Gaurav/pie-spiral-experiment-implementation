@@ -1,0 +1,142 @@
+# Ablation Study: Alpha Decay Policy Comparison
+# Phase 6 - Compare different alpha decay schedules for attractor state
+
+experiment_name: ablation_alpha_policy
+run_name: null
+output_dir: ./results/ablation_alpha_policy
+logging_dir: ./logs/ablation_alpha_policy
+
+# Pretrained Model Configuration
+pretrained:
+  model_name_or_path: Qwen/Qwen2.5-1.5B
+  trust_remote_code: true
+  torch_dtype: bfloat16
+  load_in_4bit: false
+  load_in_8bit: false
+  use_flash_attn: true
+  device_map: auto
+
+# Model Configuration
+model:
+  # Positional Encoding
+  pos_encoding:
+    type: pi_spiral
+    irrational: pi
+    hybrid_K: 16000
+    transition_width: 1000
+    max_seq_len: 1000000
+    rope_base: 10000.0
+  
+  # Attractor State - Alpha policy will be varied
+  attractor:
+    use_attractor: true
+    alpha_policy: exp_c_over_N  # Will be varied
+    alpha_value: 0.99  # For 'fixed' policy
+    c_value: 3.14159  # For 'exp_c_over_N' policy (π)
+    inject_layers: last_N
+    N_inject: 4
+    attractor_inject: cross_attn
+    d_state: null
+
+# Training Configuration
+training:
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  num_epochs: 1
+  learning_rate: 5.0e-05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  lr_scheduler_type: cosine
+  warmup_steps: 50
+  bf16: true
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 500
+  seed: 42
+  deterministic: true
+
+# Data Configuration
+data:
+  dataset_name: niah
+  data_dir: ./data
+  max_seq_length: 1000000
+  preprocessing_num_workers: 4
+  dataloader_num_workers: 0
+
+# Evaluation Configuration
+evaluation:
+  benchmarks:
+    - niah
+    - ruler
+  
+  # NIAH at 512k for ablation
+  niah_lengths:
+    - 512000
+  niah_depths:
+    - 0.1
+    - 0.3
+    - 0.5
+    - 0.7
+    - 0.9
+  
+  # One RULER task at 256k
+  ruler_tasks:
+    - multi_needle
+  ruler_max_length: 256000
+  
+  max_new_tokens: 100
+  temperature: 1.0
+  top_k: 50
+  top_p: 0.95
+  do_sample: true
+  
+  metrics:
+    - accuracy
+    - exact_match
+    - f1
+
+# System Configuration
+system:
+  device: cuda
+  num_gpus: 1
+  window_size: 8000
+  gradient_checkpointing: false
+  cpu_offload: false
+  use_flash_attention: true
+  compile_model: false
+  log_memory: true
+  log_throughput: true
+
+# Ablation Settings
+ablation_mode: alpha_policy
+ablation_values:
+  - exp_c_over_N  # α = exp(-π/N) - default, theoretically motivated
+  - fixed         # α = 0.99 - constant decay
+  - learned       # α as learnable parameter
+
+# Additional alpha configurations for exp_c_over_N with different c values
+alpha_c_values:
+  - 3.14159  # π (default)
+  - 2.71828  # e
+  - 1.0      # c=1
+  - 5.0      # c=5
+
+# Experiment Notes
+notes: |
+  This ablation study compares different alpha decay schedules for the attractor state:
+  
+  1. exp_c_over_N: α = exp(-c/N) where c defaults to π
+     - Theoretically motivated by decay properties
+     - Will also test different c values
+  
+  2. fixed: α = constant (0.99)
+     - Simple baseline
+     - No adaptation to sequence length
+  
+  3. learned: α as a learnable scalar parameter
+     - Data-driven approach
+     - May adapt during training
+  
+  Expected outcome: Identify optimal decay schedule for different sequence lengths.
+  
+  Pass gate: Clear ranking of alpha policies with statistical significance.

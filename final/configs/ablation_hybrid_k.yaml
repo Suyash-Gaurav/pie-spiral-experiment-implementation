@@ -1,0 +1,142 @@
+# Ablation Study: Hybrid Threshold K Sweep
+# Phase 6 - Determine optimal transition point from RoPE to π-Spiral
+
+experiment_name: ablation_hybrid_k
+run_name: null
+output_dir: ./results/ablation_hybrid_k
+logging_dir: ./logs/ablation_hybrid_k
+
+# Pretrained Model Configuration
+pretrained:
+  model_name_or_path: Qwen/Qwen2.5-1.5B
+  trust_remote_code: true
+  torch_dtype: bfloat16
+  load_in_4bit: false
+  load_in_8bit: false
+  use_flash_attn: true
+  device_map: auto
+
+# Model Configuration
+model:
+  # Positional Encoding - Hybrid mode
+  pos_encoding:
+    type: hybrid
+    irrational: pi
+    hybrid_K: 16000  # Will be varied in ablation
+    transition_width: 1000
+    max_seq_len: 1000000
+    rope_base: 10000.0
+  
+  # Attractor State
+  attractor:
+    use_attractor: true
+    alpha_policy: exp_c_over_N
+    alpha_value: 0.99
+    c_value: null  # Defaults to π
+    inject_layers: last_N
+    N_inject: 4
+    attractor_inject: cross_attn
+    d_state: null
+
+# Training Configuration
+training:
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  num_epochs: 1
+  learning_rate: 5.0e-05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  lr_scheduler_type: cosine
+  warmup_steps: 50
+  bf16: true
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 500
+  seed: 42
+  deterministic: true
+
+# Data Configuration
+data:
+  dataset_name: niah
+  data_dir: ./data
+  max_seq_length: 1000000
+  preprocessing_num_workers: 4
+  dataloader_num_workers: 0
+
+# Evaluation Configuration
+evaluation:
+  benchmarks:
+    - niah
+  
+  # Test both short-range (guard) and long-range performance
+  niah_lengths:
+    - 4000    # Short-range guard
+    - 8000    # Short-range guard
+    - 16000   # Short-range guard
+    - 32000   # Medium range
+    - 64000   # Long range
+    - 128000  # Long range
+    - 256000  # Very long range
+  
+  niah_depths:
+    - 0.1
+    - 0.3
+    - 0.5
+    - 0.7
+    - 0.9
+  
+  max_new_tokens: 100
+  temperature: 1.0
+  top_k: 50
+  top_p: 0.95
+  do_sample: true
+  
+  metrics:
+    - accuracy
+    - exact_match
+    - f1
+
+# System Configuration
+system:
+  device: cuda
+  num_gpus: 1
+  window_size: 8000
+  gradient_checkpointing: false
+  cpu_offload: false
+  use_flash_attention: true
+  compile_model: false
+  log_memory: true
+  log_throughput: true
+
+# Ablation Settings
+ablation_mode: hybrid_k
+ablation_values:
+  - 8000   # Early transition - more π-Spiral
+  - 16000  # Default - balanced
+  - 32000  # Late transition - more RoPE
+  - 64000  # Very late transition - mostly RoPE
+
+# Short-range regression guard thresholds
+short_range_guard:
+  max_lengths: [4000, 8000, 16000, 32000]
+  max_regression_percent: 1.0  # ≤ 1% drop allowed
+
+# Experiment Notes
+notes: |
+  This ablation study sweeps the hybrid threshold K to find the optimal transition
+  point from RoPE (short-range) to π-Spiral (long-range) encoding.
+  
+  Key considerations:
+  1. Short-range guard: Ensure ≤ 1% regression at 4k-32k with any K setting
+  2. Long-range performance: Maximize accuracy at 128k+ sequences
+  3. Smooth transition: Verify sigmoid blending works across all K values
+  
+  Recommended K values from experiment plan:
+  - K=8k for Qwen 1.5B (smaller model)
+  - K=16k for Llama 8B (medium model)
+  
+  Expected outcome: Identify K that balances short-range preservation with
+  long-range gains, with no short-range regressions.
+  
+  Pass gate: At least one K setting with ≤ 1% short-range drop and significant
+  long-range gains over pure RoPE.

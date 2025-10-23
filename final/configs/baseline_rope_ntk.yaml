@@ -1,0 +1,143 @@
+# Baseline: RoPE with NTK-aware Scaling
+# Comparison baseline for π-Spiral encoding experiments
+
+experiment_name: baseline_rope_ntk
+run_name: null
+output_dir: ./results/baseline_rope_ntk
+logging_dir: ./logs/baseline_rope_ntk
+
+# Pretrained Model Configuration
+pretrained:
+  model_name_or_path: Qwen/Qwen2.5-1.5B
+  trust_remote_code: true
+  torch_dtype: bfloat16
+  load_in_4bit: false
+  load_in_8bit: false
+  use_flash_attn: true
+  device_map: auto
+
+# Model Configuration
+model:
+  # Positional Encoding - RoPE with NTK-aware scaling
+  pos_encoding:
+    type: rope_ntk
+    rope_base: 10000.0
+    max_seq_len: 1000000
+    # NTK-aware scaling parameters
+    ntk_scaling: true
+    ntk_alpha: 1.0  # Scaling factor for context extension
+    interpolation_method: ntk_aware  # Options: ntk_aware, ntk_by_parts, linear
+    original_max_position: 32768  # Original context length model was trained on
+    extended_max_position: 1000000  # Target extended context length
+  
+  # No attractor for baseline
+  attractor:
+    use_attractor: false
+
+# Training Configuration
+training:
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  num_epochs: 1
+  learning_rate: 5.0e-05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  lr_scheduler_type: cosine
+  warmup_steps: 50
+  bf16: true
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 500
+  seed: 42
+  deterministic: true
+
+# Data Configuration
+data:
+  dataset_name: niah
+  data_dir: ./data
+  max_seq_length: 1000000
+  preprocessing_num_workers: 4
+  dataloader_num_workers: 0
+
+# Evaluation Configuration
+evaluation:
+  benchmarks:
+    - niah
+    - ruler
+  
+  # NIAH sweep - same as π-Spiral for fair comparison
+  niah_lengths:
+    - 32000
+    - 64000
+    - 128000
+    - 256000
+  
+  niah_depths:
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+  
+  # RULER tasks
+  ruler_tasks:
+    - counting
+    - multi_needle
+    - multi_hop
+    - aggregation
+  ruler_max_length: 256000
+  
+  max_new_tokens: 100
+  temperature: 1.0
+  top_k: 50
+  top_p: 0.95
+  do_sample: true
+  
+  metrics:
+    - accuracy
+    - exact_match
+    - f1
+
+# System Configuration
+system:
+  device: cuda
+  num_gpus: 1
+  window_size: null  # No sliding window for baseline
+  gradient_checkpointing: false
+  cpu_offload: false
+  use_flash_attention: true
+  compile_model: false
+  log_memory: true
+  log_throughput: true
+
+# Experiment Notes
+notes: |
+  RoPE-NTK Baseline Configuration
+  
+  This configuration uses RoPE with NTK-aware scaling for context extension,
+  which is a strong baseline for long-context tasks.
+  
+  Key Features:
+  - NTK-aware interpolation: Allows extending context length without fine-tuning
+  - Base frequency: 10,000 (standard RoPE default)
+  - Scaling method: NTK-aware (theoretically motivated)
+  - No attractor state (pure positional encoding baseline)
+  
+  Purpose:
+  - Serve as comparison baseline for π-Spiral encoding
+  - Demonstrate standard approach to context extension
+  - Establish performance ceiling for traditional methods
+  
+  Expected Behavior:
+  - Good short-range performance (4k-32k)
+  - Degraded long-range performance (256k+) due to periodic aliasing
+  - Memory scales with sequence length (not O(1))
+  
+  Comparison Metrics:
+  - π-Spiral should show ≥ 30% absolute gain over RoPE-NTK on deep NIAH at ≥ 256k
+  - π-Spiral should have flat VRAM vs RoPE-NTK's linear growth
+  - π-Spiral should avoid periodic oscillations seen in RoPE-NTK

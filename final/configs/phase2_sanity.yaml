@@ -1,0 +1,164 @@
+# Phase 2: Sanity Runs on Qwen2.5-1.5B
+# Goal: Prove nothing breaks and memory stays bounded
+
+experiment_name: phase2_sanity_qwen_1.5b
+run_name: null
+output_dir: ./results/phase2_sanity
+logging_dir: ./logs/phase2_sanity
+
+# Pretrained Model Configuration
+pretrained:
+  model_name_or_path: Qwen/Qwen2.5-1.5B
+  trust_remote_code: true
+  torch_dtype: bfloat16
+  load_in_4bit: false
+  load_in_8bit: false
+  use_flash_attn: true
+  device_map: auto
+
+# Model Configuration
+model:
+  # Positional Encoding - Test all three modes
+  pos_encoding:
+    type: hybrid  # Will test: rope, pi_spiral, hybrid
+    irrational: pi
+    hybrid_K: 16000
+    transition_width: 1000
+    max_seq_len: 1000000
+    rope_base: 10000.0
+  
+  # Attractor State
+  attractor:
+    use_attractor: true
+    alpha_policy: exp_c_over_N
+    alpha_value: 0.99
+    c_value: null  # Defaults to π
+    inject_layers: last_N
+    N_inject: 4
+    attractor_inject: cross_attn
+    d_state: null
+
+# Training Configuration
+training:
+  batch_size: 1
+  gradient_accumulation_steps: 4
+  num_epochs: 1
+  learning_rate: 5.0e-05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  lr_scheduler_type: cosine
+  warmup_steps: 20
+  bf16: true
+  logging_steps: 5
+  eval_steps: 50
+  save_steps: 200
+  seed: 42
+  deterministic: true
+
+# Data Configuration
+data:
+  dataset_name: niah
+  data_dir: ./data
+  max_seq_length: 1000000
+  preprocessing_num_workers: 4
+  dataloader_num_workers: 0
+
+# Evaluation Configuration
+evaluation:
+  benchmarks:
+    - niah
+  
+  # Short tasks at 4k to 32k
+  niah_lengths:
+    - 4000
+    - 8000
+    - 16000
+    - 32000
+  
+  niah_depths:
+    - 0.1
+    - 0.3
+    - 0.5
+    - 0.7
+    - 0.9
+  
+  # Long stream smoke test
+  smoke_test:
+    enabled: true
+    length: 1000000  # 1M tokens dummy stream
+    window_size: 8000
+    log_interval: 10000  # Log every 10k tokens
+  
+  max_new_tokens: 50
+  temperature: 1.0
+  top_k: 50
+  top_p: 0.95
+  do_sample: true
+  
+  metrics:
+    - accuracy
+    - exact_match
+
+# System Configuration
+system:
+  device: cuda
+  num_gpus: 1
+  window_size: 8000
+  gradient_checkpointing: false
+  cpu_offload: false
+  use_flash_attention: true
+  compile_model: false
+  log_memory: true
+  log_throughput: true
+  memory_log_interval: 100  # Log memory every 100 steps
+
+# Test Modes
+test_modes:
+  - rope        # Baseline
+  - pi_spiral   # Pure π-Spiral
+  - hybrid      # Hybrid (RoPE + π-Spiral)
+
+# Pass Gate Criteria
+pass_gate:
+  short_range_regression:
+    max_delta_percent: 1.0  # ≤ 1% delta on 4k-32k tasks with Hybrid
+    baseline: rope
+    test: hybrid
+  
+  memory_scaling:
+    check_flat_vram: true  # VRAM should be flat across 64k to 1M
+    lengths_to_check: [64000, 128000, 256000, 512000, 1000000]
+    max_vram_growth_percent: 5.0  # Allow ≤ 5% growth
+  
+  throughput:
+    check_stable_speed: true  # Tokens/sec should be stable
+    min_tokens_per_sec: 10  # Minimum acceptable throughput
+
+# Experiment Notes
+notes: |
+  Phase 2 Sanity Runs - Qwen2.5-1.5B
+  
+  Goals:
+  1. Verify no short-range regression beyond 1% for π-Spiral and none for Hybrid
+  2. Confirm O(1) memory: flat VRAM across 64k to 1M length
+  3. Verify stable throughput (tokens/sec) across long sequences
+  
+  Test Plan:
+  1. Short tasks (4k-32k):
+     - Run NIAH with RoPE, π-Spiral, and Hybrid
+     - Compare accuracy: Hybrid should be within 1% of RoPE
+     - π-Spiral may show slight regression (acceptable)
+  
+  2. Long stream smoke test (1M tokens):
+     - Process dummy stream with sliding window W=8k
+     - Log peak VRAM every 10k tokens
+     - Log tokens/sec throughout
+     - Verify VRAM stays flat (O(1) memory)
+     - Verify speed stays stable
+  
+  Pass Gate:
+  ✓ Hybrid: ≤ 1% delta on 4k-32k tasks vs RoPE
+  ✓ Flat VRAM across 64k to 1M length
+  ✓ Stable tokens/sec throughout long sequences
+  
+  If all pass gates hold, proceed to Phase 3 (Core Benchmarks).

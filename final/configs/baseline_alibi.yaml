@@ -1,0 +1,157 @@
+# Baseline: ALiBi (Attention with Linear Biases)
+# Comparison baseline for π-Spiral encoding experiments
+
+experiment_name: baseline_alibi
+run_name: null
+output_dir: ./results/baseline_alibi
+logging_dir: ./logs/baseline_alibi
+
+# Pretrained Model Configuration
+pretrained:
+  model_name_or_path: Qwen/Qwen2.5-1.5B
+  trust_remote_code: true
+  torch_dtype: bfloat16
+  load_in_4bit: false
+  load_in_8bit: false
+  use_flash_attn: true
+  device_map: auto
+
+# Model Configuration
+model:
+  # Positional Encoding - ALiBi
+  pos_encoding:
+    type: alibi
+    max_seq_len: 1000000
+    # ALiBi-specific parameters
+    alibi_slopes: auto  # Auto-calculate slopes based on num_heads
+    alibi_bias_max: 8  # Maximum bias value
+    # Slope calculation: m = 2^(-8/n) for head n
+    # Biases decrease linearly in log scale
+    # Higher bias for closer tokens, lower for distant tokens
+  
+  # No attractor for baseline
+  attractor:
+    use_attractor: false
+
+# Training Configuration
+training:
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  num_epochs: 1
+  learning_rate: 5.0e-05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  lr_scheduler_type: cosine
+  warmup_steps: 50
+  bf16: true
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 500
+  seed: 42
+  deterministic: true
+
+# Data Configuration
+data:
+  dataset_name: niah
+  data_dir: ./data
+  max_seq_length: 1000000
+  preprocessing_num_workers: 4
+  dataloader_num_workers: 0
+
+# Evaluation Configuration
+evaluation:
+  benchmarks:
+    - niah
+    - ruler
+  
+  # NIAH sweep - same as π-Spiral for fair comparison
+  niah_lengths:
+    - 32000
+    - 64000
+    - 128000
+    - 256000
+  
+  niah_depths:
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+  
+  # RULER tasks
+  ruler_tasks:
+    - counting
+    - multi_needle
+    - multi_hop
+    - aggregation
+  ruler_max_length: 256000
+  
+  max_new_tokens: 100
+  temperature: 1.0
+  top_k: 50
+  top_p: 0.95
+  do_sample: true
+  
+  metrics:
+    - accuracy
+    - exact_match
+    - f1
+
+# System Configuration
+system:
+  device: cuda
+  num_gpus: 1
+  window_size: null  # No sliding window for baseline
+  gradient_checkpointing: false
+  cpu_offload: false
+  use_flash_attention: true
+  compile_model: false
+  log_memory: true
+  log_throughput: true
+
+# Experiment Notes
+notes: |
+  ALiBi (Attention with Linear Biases) Baseline Configuration
+  
+  This configuration uses ALiBi positional encoding, which replaces traditional
+  positional embeddings with linear biases added directly to attention scores.
+  
+  Key Features:
+  - No positional embeddings added to input
+  - Linear biases applied to attention scores
+  - Biases decrease linearly in log scale
+  - Enables extrapolation to longer sequences than trained on
+  - Minimal computational overhead
+  
+  ALiBi Mechanism:
+  - Slope parameter m controls bias magnitude per attention head
+  - Slopes calculated as: m = 2^(-8/n) for head n
+  - Bias for position pair (i,j): bias = -m * |i - j|
+  - Closer tokens get higher (less negative) bias
+  - Distant tokens get lower (more negative) bias
+  
+  Advantages:
+  - Simple implementation
+  - Good extrapolation to longer contexts
+  - Reduces memory complexity
+  - No need for positional embeddings
+  
+  Purpose:
+  - Serve as comparison baseline for π-Spiral encoding
+  - Demonstrate alternative approach to long-context modeling
+  - Establish performance of linear bias methods
+  
+  Expected Behavior:
+  - Good short-range performance
+  - Better long-range extrapolation than standard RoPE
+  - Linear bias may not capture complex positional relationships
+  - No global context compression (unlike π-Spiral attractor)
+  
+  Comparison Metrics:
+  - π-Spiral should show gains over ALiBi on very long contexts (256k+)
+  - π-Spiral's O(1) attractor provides global context vs ALiBi's local biases
+  - Both should handle variable-length sequences well
